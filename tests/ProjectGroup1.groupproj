@@ -1,0 +1,60 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{FFD2E8E1-0409-4254-9C84-18B9AA22098D}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="NativeGrep.Tests.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\apps\npgrep\npgrep.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\apps\NativeGrep.GUI\NativeGrep.GUI.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="NativeGrep_Tests">
+        <MSBuild Projects="NativeGrep.Tests.dproj"/>
+    </Target>
+    <Target Name="NativeGrep_Tests:Clean">
+        <MSBuild Projects="NativeGrep.Tests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="NativeGrep_Tests:Make">
+        <MSBuild Projects="NativeGrep.Tests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="npgrep">
+        <MSBuild Projects="..\apps\npgrep\npgrep.dproj"/>
+    </Target>
+    <Target Name="npgrep:Clean">
+        <MSBuild Projects="..\apps\npgrep\npgrep.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="npgrep:Make">
+        <MSBuild Projects="..\apps\npgrep\npgrep.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="NativeGrep_GUI">
+        <MSBuild Projects="..\apps\NativeGrep.GUI\NativeGrep.GUI.dproj"/>
+    </Target>
+    <Target Name="NativeGrep_GUI:Clean">
+        <MSBuild Projects="..\apps\NativeGrep.GUI\NativeGrep.GUI.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="NativeGrep_GUI:Make">
+        <MSBuild Projects="..\apps\NativeGrep.GUI\NativeGrep.GUI.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="NativeGrep_Tests;npgrep;NativeGrep_GUI"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="NativeGrep_Tests:Clean;npgrep:Clean;NativeGrep_GUI:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="NativeGrep_Tests:Make;npgrep:Make;NativeGrep_GUI:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
