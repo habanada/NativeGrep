@@ -33,7 +33,7 @@ NativeGrep/
   tests/                        integration-style console test suite
   benchmarks/                   benchmark script
   docs/                         API, semantics, and limits
-  external/NativePattern3/src/  vendored NativePattern dependency (unmodified)
+  external/NativePattern3/src/  local NativePattern dependency (not included)
 ```
 
 ## Build
@@ -42,7 +42,7 @@ NativeGrep/
 2. Build the project. On success, the executable is at `bin/Win64/<Config>/npgrep.exe`.
 3. Open `tests/NativeGrep.Tests.dproj`, build it for Win64, and run it.
 
-Both project files use DCC unit search paths for `src` and `external/NativePattern3/src`. NativePattern itself is vendored unmodified.
+Both project files use DCC unit search paths for `src` and `external/NativePattern3/src`. Obtain [NativePattern](https://github.com/habanada/NativePattern) separately and place its units in `external/NativePattern3/src`, or adjust the search paths. The local `external` directory is excluded from Git.
 
 ## Runtime dependencies
 

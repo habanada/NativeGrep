@@ -181,3 +181,6 @@ Desktop.ini
 **/__pycache__/
 *.pyc
 *.delphilsp.json
+
+# Local dependencies
+/external/
