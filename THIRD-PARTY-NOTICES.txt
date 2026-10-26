@@ -1,0 +1,39 @@
+NativeGrep - License information
+
+NativeGrep
+Copyright (c) 2026 Selahattin Erkoc
+License: MIT
+Full text: LICENSE in the source checkout, LICENSE.txt in the binary package.
+Project: https://github.com/habanada/NativeGrep
+
+NativeGrep's MIT license applies to its own code. The components below retain
+their respective licenses.
+
+NativePattern
+Copyright (c) 2026 Selahattin Erkoc
+License: MIT; the full MIT text and copyright notice above also apply.
+Used for byte, literal, masked, multi-pattern, and byte-based fuzzy search.
+Project: https://github.com/habanada/NativePattern
+
+NimbusForms
+Copyright (c) 2026 Selahattin Erkoc
+License: MIT; the full MIT text and copyright notice above also apply.
+Used by the NativeGrep GUI. NimbusForms is still in preview.
+
+PCRE2 - pcre2-8.dll
+Bundled engine version: 10.47 (2025-10-21), Win64.
+License: BSD-3-Clause WITH PCRE2-exception.
+Copyright notices and full terms: licenses/PCRE2-10.47-LICENCE.txt
+Source: https://github.com/PCRE2Project/pcre2/tree/pcre2-10.47
+The DLL is required for regex search and regex-based replacement. Other search
+modes do not require it. PCRE2 is an external engine, not NativeGrep's own code.
+
+Unicode data
+NativeGrep includes tables derived from Unicode 15.1 data.
+License: Unicode License V3 (SPDX: Unicode-3.0).
+Copyright notice and full terms: licenses/Unicode-3.0.txt
+Source: https://www.unicode.org/license.txt
+
+Keep the applicable license texts and copyright notices with copies of the
+software. Include LICENSE.txt, THIRD-PARTY-NOTICES.txt, and the licenses directory
+when distributing this binary package with pcre2-8.dll.

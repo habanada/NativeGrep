@@ -16,7 +16,8 @@ uses
   NimbusForms.Controls.ToggleBox, NimbusForms.Controls.CheckBox,
   NimbusForms.Controls.ComboBox, NimbusForms.Controls.ThemedLabel,
   NimbusForms.Rendering.Canvas, NimbusForms.Rendering.Types,
-  NimbusForms.Menus.PopupMenu, Vcl.Menus, NativeGrep.Types, NativeGrep.Replace, NativeGrep.FileMonitor;
+  NimbusForms.Menus.PopupMenu, Vcl.Menus, NativeGrep.Types, NativeGrep.Replace, NativeGrep.FileMonitor,
+  NimbusForms.Controls.Base;
 
 type
   ISearchSession = interface(IGrepResultSink)

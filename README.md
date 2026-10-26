@@ -133,3 +133,7 @@ Runs the search across 1/2/4/8 workers, verifies matches/bytes/file counts/error
 | Build and test commands | [Testing](docs/testing.md) |
 | Replacement test coverage | [Replace tests](docs/replace-testing.md) |
 | GUI setup and controls | [GUI](apps/NativeGrep.GUI/README.md) |
+
+## License
+
+NativeGrep is released under the [MIT License](LICENSE). See [third-party notices](THIRD-PARTY-NOTICES.txt) for NativePattern, NimbusForms, PCRE2, and Unicode data. Binary distributions must retain the applicable license files, including the PCRE2 notice when shipping `pcre2-8.dll`.
