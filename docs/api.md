@@ -53,11 +53,15 @@ Before the call, `Sink` must hold a concrete `IGrepResultSink` implementation. T
 | `MaxMatchesPerFile` | `0` | unbounded per file |
 | `MaxResultsTotal` | `0` | unbounded; without sorting, stops the scan early once reached, with sorting applies the limit only to final output |
 | `MaxFileSize` | `0` | no size filter |
+| `FileSizeFilter` | disabled bounds | byte range with optional inclusive/exclusive minimum and maximum |
+| `CreatedTimeFilter`/`ModifiedTimeFilter`/`AccessedTimeFilter` | disabled bounds | independent UTC Windows FILETIME ranges |
 | `Recursive` | `False` | direct children only, or all subdirectories |
 | `IncludeHidden` | `False` | hidden/system entries are skipped by default |
 | `Includes`/`Excludes` | empty | a pattern without a slash matches filenames; with a slash it matches relative paths, including `**` |
 
 Note: recursive directory search holds up to 257 directory handles along the current recursion chain; beyond a depth of 256 a file-error event is emitted. Work/result queues and each worker's read buffer are bounded. The number of matches can still be unbounded **if the sink itself accumulates them fully**; the library does not retain them as a whole.
+
+Size and time conditions are combined with include/exclude masks during file discovery. `MaxFileSize` intersects with the new size range. `NativeGrep.Filters` provides size and time parsing, validation and UTC conversion. Active size/time filters are rejected by `SearchStream` and `SearchBytes`. See [file filters](file-filters.md) for boundary rules and examples.
 
 ## Errors, cancellation, and synchronization
 

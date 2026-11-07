@@ -18,7 +18,7 @@ implementation
 uses
   System.SyncObjs, System.Generics.Collections,
   Winapi.Windows, NativeGrep.Matcher,
-  NativeGrep.Queue, NativeGrep.Files, NativeGrep.Scanner, NativeGrep.Timing, NativeGrep.Sort;
+  NativeGrep.Queue, NativeGrep.Files, NativeGrep.Scanner, NativeGrep.Timing, NativeGrep.Sort, NativeGrep.Filters;
 
 type
   TGrepEventKind = (geMatch, geError);
@@ -88,6 +88,7 @@ var
 begin
   inherited Create;
   FRequest := Request;
+  TGrepFileFilters.Validate(FRequest.Options);
   FRequest.Options.Roots := Copy(Request.Options.Roots);
   FRequest.Options.Includes := Copy(Request.Options.Includes);
   FRequest.Options.Excludes := Copy(Request.Options.Excludes);
@@ -209,6 +210,7 @@ var
   Stamp: Int64;
   HasPath: Boolean;
 begin
+  Stamp := 0;
   Matcher := nil;
   try
     try
@@ -421,6 +423,8 @@ var
   Path: string;
 begin
   if Stream = nil then raise EArgumentNilException.Create('Stream');
+  if TGrepFileFilters.Active(FRequest.Options) then
+    raise EArgumentException.Create('File metadata filters require filesystem sources; they cannot be used with streams or bytes');
   if Sink = nil then raise EArgumentNilException.Create('Sink');
   Result := Default(TGrepStatistics);
   Result.FilesEnumerated := 1;

@@ -99,6 +99,10 @@ The text CLI prints the **matched literal text**, not the whole line, unless `--
 
 `--include`/`--exclude` patterns without a slash match the filename only; patterns with a slash match the relative path, including `**` across directory boundaries. Long absolute Windows/UNC paths are converted to extended-path form internally when needed; reported match paths remain exactly as supplied by the caller.
 
+## File size and time filters
+
+CLI, GUI and library share file size and timestamp filters. Use `--file-size ">1MiB"`, `--file-size "1MiB..20MiB"`, or `--min-file-size`/`--max-file-size`. Creation, modification and last access each support `--created-from`/`--created-to`, `--modified-from`/`--modified-to` and `--accessed-from`/`--accessed-to`, with dates, timestamps and relative values such as `now-7d`. The GUI provides a **File filters** tab with comparisons, a calendar, time templates and saved settings. See [file filters](docs/file-filters.md) for units, boundary rules and API examples.
+
 ## Context lines
 
 `--line-text`, `-A N`, `-B N`, and `-C N` (each 0..32) print the original line and optionally bounded neighboring lines, via the standalone `NativeGrep.Context` unit. Context is match-oriented: matches on the same or adjacent lines can produce overlapping context, with no grep-style global line grouping. JSONL output includes a `context` array (`line`, `text`, `match`, `truncated`) on the match object. Not available for `--stdin`, binary patterns, `--count`, or `--files-with-matches`.

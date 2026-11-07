@@ -5,7 +5,7 @@ object frmNativeGrep: TfrmNativeGrep
   ClientHeight = 730
   ClientWidth = 1200
   Color = clWindow
-  Constraints.MinHeight = 600
+  Constraints.MinHeight = 660
   Constraints.MinWidth = 920
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -132,7 +132,7 @@ object frmNativeGrep: TfrmNativeGrep
         object FReplaceEdit: TThemedTextBox
           Left = 82
           Top = 110
-          Width = 858
+          Width = 828
           Height = 24
           StyleMode = stCompact
           Anchors = [akLeft, akTop, akRight]
@@ -181,9 +181,9 @@ object frmNativeGrep: TfrmNativeGrep
           OnClick = RunClick
         end
         object FReplaceSelectedButton: TThemedButton
-          Left = 952
+          Left = 922
           Top = 110
-          Width = 127
+          Width = 137
           Height = 29
           StyleMode = stCompact
           Anchors = [akTop, akRight]
@@ -200,9 +200,9 @@ object frmNativeGrep: TfrmNativeGrep
           OnClick = ReplaceSelectedClick
         end
         object FReplaceAllButton: TThemedButton
-          Left = 1087
+          Left = 1067
           Top = 110
-          Width = 87
+          Width = 107
           Height = 29
           StyleMode = stCompact
           Anchors = [akTop, akRight]
@@ -211,7 +211,7 @@ object frmNativeGrep: TfrmNativeGrep
           ContentPadding.Top = 5
           ContentPadding.Right = 10
           ContentPadding.Bottom = 5
-          Caption = 'Replace all'
+          Caption = 'Replace visible'
           Constraints.MinHeight = 24
           Constraints.MinWidth = 24
           Enabled = False
@@ -383,9 +383,9 @@ object frmNativeGrep: TfrmNativeGrep
                   ParentFont = False
                 end
                 object FResultCount: TThemedLabel
-                  Left = 526
+                  Left = 440
                   Top = 0
-                  Width = 114
+                  Width = 200
                   Height = 27
                   Align = alRight
                   Alignment = taRightJustify
@@ -395,15 +395,60 @@ object frmNativeGrep: TfrmNativeGrep
                   UseMutedForeColor = True
                 end
               end
-              object FList: TThemedVirtualList
+              object ResultTools: TThemedPanel
                 Left = 0
                 Top = 27
                 Width = 640
-                Height = 323
+                Height = 64
+                Align = alTop
+                ShowBorder = False
+                TabOrder = 1
+                DesignSize = (
+                  640
+                  64)
+                object FResultFilter: TThemedTextBox
+                  Left = 8
+                  Top = 3
+                  Width = 624
+                  Height = 26
+                  StyleMode = stCompact
+                  Anchors = [akLeft, akTop, akRight]
+                  PlaceholderText = 'Filter results: path, text, line or offset (Ctrl+F)'
+                  ShowClearButton = True
+                  TabOrder = 0
+                end
+                object GroupingLabel: TThemedLabel
+                  Left = 8
+                  Top = 36
+                  Width = 60
+                  Height = 22
+                  AutoSize = False
+                  Caption = 'Group by'
+                  Layout = tlCenter
+                end
+                object FGroupingCombo: TThemedComboBox
+                  Left = 74
+                  Top = 34
+                  Width = 200
+                  Height = 26
+                  ItemIndex = 1
+                  Text = 'File'
+                  Items.Strings = (
+                    'No grouping'
+                    'File'
+                    'Folder')
+                  TabOrder = 1
+                end
+              end
+              object FList: TThemedVirtualList
+                Left = 0
+                Top = 91
+                Width = 640
+                Height = 259
                 StyleMode = stCompact
                 Align = alClient
                 ParentColor = False
-                TabOrder = 1
+                TabOrder = 2
                 Columns = <
                   item
                     HeaderText = 'FILE'
@@ -439,10 +484,17 @@ object frmNativeGrep: TfrmNativeGrep
                     Width = 85
                     Sortable = False
                     Tag = 5
+                  end
+                  item
+                    HeaderText = 'MATCH TEXT'
+                    Width = 360
+                    Sortable = False
+                    Tag = 6
                   end>
                 HeaderHeight = 22
                 FilterHeight = 22
                 ShowRowDetails = True
+                ShowGroupHeaders = True
                 DetailsHeight = 92
                 GroupHeaderHeight = 20
                 RowHeight = 23
@@ -704,6 +756,349 @@ object frmNativeGrep: TfrmNativeGrep
             ShowStatusBar = False
             ShowLineNumbers = False
           end
+        end
+      end
+    end
+    object FiltersTab: TTabSheet
+      Caption = 'File filters'
+      object FilterSurface: TThemedPanel
+        Align = alClient
+        ShowBorder = False
+        TabOrder = 0
+        object FFiltersEnabled: TThemedCheckBox
+          Left = 25
+          Top = 16
+          Width = 230
+          Height = 27
+          Caption = 'Apply file filters'
+          Checked = True
+          State = cbChecked
+          TabOrder = 0
+        end
+        object FiltersInfo: TThemedLabel
+          Left = 25
+          Top = 49
+          Width = 760
+          Height = 22
+          AutoSize = False
+          Caption = 'All enabled conditions must match. Blank bounds are unlimited.'
+          Layout = tlCenter
+        end
+        object SizeFilterLabel: TThemedLabel
+          Left = 25
+          Top = 87
+          Width = 150
+          Height = 22
+          AutoSize = False
+          Caption = 'File size'
+          Layout = tlCenter
+        end
+        object FSizeMode: TThemedComboBox
+          Left = 190
+          Top = 84
+          Width = 180
+          Height = 26
+          ItemIndex = 0
+          Text = 'Any size'
+          Items.Strings = (
+            'Any size'
+            'Smaller than'
+            'At most'
+            'Larger than'
+            'At least'
+            'Exactly'
+            'Between (inclusive)')
+          TabOrder = 1
+        end
+        object FSizeFirst: TThemedTextBox
+          Left = 382
+          Top = 84
+          Width = 184
+          Height = 26
+          StyleMode = stCompact
+          PlaceholderText = 'e.g. 1.5 MiB'
+          ShowClearButton = True
+          TabOrder = 2
+        end
+        object SizeToLabel: TThemedLabel
+          Left = 575
+          Top = 87
+          Width = 25
+          Height = 22
+          AutoSize = False
+          Caption = 'to'
+          Layout = tlCenter
+        end
+        object FSizeSecond: TThemedTextBox
+          Left = 610
+          Top = 84
+          Width = 184
+          Height = 26
+          StyleMode = stCompact
+          PlaceholderText = 'e.g. 100 MiB'
+          ShowClearButton = True
+          TabOrder = 3
+        end
+        object SizeUnitsInfo: TThemedLabel
+          Left = 190
+          Top = 118
+          Width = 760
+          Height = 22
+          AutoSize = False
+          Caption = 'B, KB/MB/GB/TB = decimal; KiB/MiB/GiB/TiB = binary. Exactly 0 selects empty files.'
+          Layout = tlCenter
+        end
+        object TimeFromLabel: TThemedLabel
+          Left = 190
+          Top = 159
+          Width = 250
+          Height = 22
+          AutoSize = False
+          Caption = 'From (inclusive)'
+          Layout = tlCenter
+        end
+        object TimeToLabel: TThemedLabel
+          Left = 502
+          Top = 159
+          Width = 350
+          Height = 22
+          AutoSize = False
+          Caption = 'To (inclusive; dates include the whole day)'
+          Layout = tlCenter
+        end
+        object CreatedFilterLabel: TThemedLabel
+          Left = 25
+          Top = 193
+          Width = 150
+          Height = 22
+          AutoSize = False
+          Caption = 'Created'
+          Layout = tlCenter
+        end
+        object FCreatedFrom: TThemedTextBox
+          Left = 190
+          Top = 190
+          Width = 300
+          Height = 26
+          StyleMode = stCompact
+          PlaceholderText = 'YYYY-MM-DD or date and time'
+          ShowClearButton = True
+          TabOrder = 4
+        end
+        object FCreatedTo: TThemedTextBox
+          Left = 502
+          Top = 190
+          Width = 300
+          Height = 26
+          StyleMode = stCompact
+          PlaceholderText = 'Blank = no upper limit'
+          ShowClearButton = True
+          TabOrder = 5
+        end
+        object ModifiedFilterLabel: TThemedLabel
+          Left = 25
+          Top = 237
+          Width = 150
+          Height = 22
+          AutoSize = False
+          Caption = 'Modified'
+          Layout = tlCenter
+        end
+        object FModifiedFrom: TThemedTextBox
+          Left = 190
+          Top = 234
+          Width = 300
+          Height = 26
+          StyleMode = stCompact
+          PlaceholderText = 'YYYY-MM-DD or date and time'
+          ShowClearButton = True
+          TabOrder = 6
+        end
+        object FModifiedTo: TThemedTextBox
+          Left = 502
+          Top = 234
+          Width = 300
+          Height = 26
+          StyleMode = stCompact
+          PlaceholderText = 'Blank = no upper limit'
+          ShowClearButton = True
+          TabOrder = 7
+        end
+        object AccessedFilterLabel: TThemedLabel
+          Left = 25
+          Top = 281
+          Width = 150
+          Height = 22
+          AutoSize = False
+          Caption = 'Last accessed'
+          Layout = tlCenter
+        end
+        object FAccessedFrom: TThemedTextBox
+          Left = 190
+          Top = 278
+          Width = 300
+          Height = 26
+          StyleMode = stCompact
+          PlaceholderText = 'YYYY-MM-DD or date and time'
+          ShowClearButton = True
+          TabOrder = 8
+        end
+        object FAccessedTo: TThemedTextBox
+          Left = 502
+          Top = 278
+          Width = 300
+          Height = 26
+          StyleMode = stCompact
+          PlaceholderText = 'Blank = no upper limit'
+          ShowClearButton = True
+          TabOrder = 9
+        end
+        object TimeFormatInfo: TThemedLabel
+          Left = 190
+          Top = 319
+          Width = 760
+          Height = 22
+          AutoSize = False
+          Caption = 'Local time unless Z / UTC offset is given. Example: 2026-11-07T14:30:00+01:00'
+          Layout = tlCenter
+        end
+        object TimeRelativeInfo: TThemedLabel
+          Left = 190
+          Top = 342
+          Width = 760
+          Height = 22
+          AutoSize = False
+          Caption = 'Also accepts today, yesterday, now, now-30m, now-24h and now-7d.'
+          Layout = tlCenter
+        end
+        object TimePresetLabel: TThemedLabel
+          Left = 25
+          Top = 388
+          Width = 150
+          Height = 22
+          AutoSize = False
+          Caption = 'Time helpers'
+          Layout = tlCenter
+        end
+        object FTimeTarget: TThemedComboBox
+          Left = 190
+          Top = 385
+          Width = 145
+          Height = 26
+          ItemIndex = 0
+          Text = 'Modified'
+          Items.Strings = (
+            'Modified'
+            'Created'
+            'Last accessed')
+          TabOrder = 10
+        end
+        object FTimePreset: TThemedComboBox
+          Left = 347
+          Top = 385
+          Width = 215
+          Height = 26
+          ItemIndex = 0
+          Text = 'Today'
+          Items.Strings = (
+            'Today'
+            'Yesterday'
+            'Last 30 minutes'
+            'Last hour'
+            'Last 24 hours'
+            'Last 7 days'
+            'Last 30 days')
+          TabOrder = 11
+        end
+        object ApplyTimePresetButton: TThemedButton
+          Left = 574
+          Top = 384
+          Width = 160
+          Height = 28
+          StyleMode = stCompact
+          Caption = 'Apply template'
+          TabOrder = 12
+          OnClick = ApplyTimePresetClick
+        end
+        object ExcludeFilterLabel: TThemedLabel
+          Left = 25
+          Top = 483
+          Width = 150
+          Height = 22
+          AutoSize = False
+          Caption = 'Exclude files'
+          Layout = tlCenter
+        end
+        object FExcludeEdit: TThemedTextBox
+          Left = 190
+          Top = 480
+          Width = 612
+          Height = 26
+          StyleMode = stCompact
+          PlaceholderText = '*.bak;*.tmp;build/**'
+          ShowClearButton = True
+          TabOrder = 16
+        end
+        object ExcludeFilterInfo: TThemedLabel
+          Left = 190
+          Top = 515
+          Width = 760
+          Height = 22
+          AutoSize = False
+          Caption = 'Separate masks with semicolons. Use ** to match across subfolders.'
+          Layout = tlCenter
+        end
+        object ClearFiltersButton: TThemedButton
+          Left = 190
+          Top = 552
+          Width = 165
+          Height = 28
+          StyleMode = stCompact
+          Caption = 'Clear all filters'
+          TabOrder = 17
+          OnClick = ClearFiltersClick
+        end
+        object CalendarFilterLabel: TThemedLabel
+          Left = 25
+          Top = 431
+          Width = 150
+          Height = 22
+          AutoSize = False
+          Caption = 'Calendar / time'
+          Layout = tlCenter
+        end
+        object FFilterCalendar: TThemedDatePicker
+          Left = 190
+          Top = 428
+          Width = 250
+          Height = 28
+          StyleMode = stCompact
+          TabOrder = 13
+        end
+        object FCalendarMode: TThemedComboBox
+          Left = 452
+          Top = 428
+          Width = 180
+          Height = 26
+          ItemIndex = 0
+          Text = 'From date'
+          Items.Strings = (
+            'From date'
+            'To date'
+            'From date and time'
+            'To date and time')
+          TabOrder = 14
+          OnChange = CalendarModeChanged
+        end
+        object ApplyCalendarButton: TThemedButton
+          Left = 644
+          Top = 428
+          Width = 160
+          Height = 28
+          StyleMode = stCompact
+          Caption = 'Use selected value'
+          TabOrder = 15
+          OnClick = ApplyCalendarClick
         end
       end
     end

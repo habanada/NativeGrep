@@ -17,20 +17,26 @@ uses
   NimbusForms.Controls.ComboBox, NimbusForms.Controls.ThemedLabel,
   NimbusForms.Rendering.Canvas, NimbusForms.Rendering.Types,
   NimbusForms.Menus.PopupMenu, Vcl.Menus, NativeGrep.Types, NativeGrep.Replace, NativeGrep.FileMonitor,
-  NimbusForms.Controls.Base;
+  NimbusForms.Controls.Base, NimbusForms.Controls.DatePicker, NativeGrep.ResultView;
 
 type
+  TResultEntry = record
+    Match: TGrepMatch;
+    Excerpt: string;
+  end;
+
   ISearchSession = interface(IGrepResultSink)
     ['{60842C75-773E-4967-9115-CB4609CBF031}']
     procedure Complete(const AStats: TGrepStatistics; const AFailure: string);
-    procedure Drain(out AMatches: TArray<TGrepMatch>; out AErrors: TArray<string>;
+    procedure Drain(out AMatches: TArray<TResultEntry>; out AErrors: TArray<string>;
       out ADone: Boolean; out AStats: TGrepStatistics; out AFailure: string);
   end;
 
   TSearchSession = class(TInterfacedObject, ISearchSession)
   private
     FGuard: TCriticalSection;
-    FMatches: TList<TGrepMatch>;
+    FMatches: TList<TResultEntry>;
+    FEncoding: TGrepEncoding;
     FErrors: TStringList;
     FMonitor: TGrepFileMonitor;
     FTracked: TDictionary<string, Boolean>;
@@ -38,12 +44,12 @@ type
     FStats: TGrepStatistics;
     FFailure: string;
   public
-    constructor Create(AMonitor: TGrepFileMonitor);
+    constructor Create(AMonitor: TGrepFileMonitor; AEncoding: TGrepEncoding);
     destructor Destroy; override;
     procedure MatchFound(const Match: TGrepMatch);
     procedure ScanError(const SourcePath, ErrorText: string);
     procedure Complete(const AStats: TGrepStatistics; const AFailure: string);
-    procedure Drain(out AMatches: TArray<TGrepMatch>; out AErrors: TArray<string>;
+    procedure Drain(out AMatches: TArray<TResultEntry>; out AErrors: TArray<string>;
       out ADone: Boolean; out AStats: TGrepStatistics; out AFailure: string);
   end;
 
@@ -76,6 +82,41 @@ type
     MainTabs: TThemedTabControl;
     RunTab: TTabSheet;
     OptionsTab: TTabSheet;
+    FiltersTab: TTabSheet;
+    FiltersInfo: TThemedLabel;
+    SizeFilterLabel: TThemedLabel;
+    SizeToLabel: TThemedLabel;
+    SizeUnitsInfo: TThemedLabel;
+    TimeFromLabel: TThemedLabel;
+    TimeToLabel: TThemedLabel;
+    CreatedFilterLabel: TThemedLabel;
+    ModifiedFilterLabel: TThemedLabel;
+    AccessedFilterLabel: TThemedLabel;
+    TimeFormatInfo: TThemedLabel;
+    TimeRelativeInfo: TThemedLabel;
+    TimePresetLabel: TThemedLabel;
+    CalendarFilterLabel: TThemedLabel;
+    ExcludeFilterLabel: TThemedLabel;
+    ExcludeFilterInfo: TThemedLabel;
+    FFilterCalendar: TThemedDatePicker;
+    FCalendarMode: TThemedComboBox;
+    ApplyCalendarButton: TThemedButton;
+    FilterSurface: TThemedPanel;
+    FFiltersEnabled: TThemedCheckBox;
+    FSizeMode: TThemedComboBox;
+    FSizeFirst: TThemedTextBox;
+    FSizeSecond: TThemedTextBox;
+    FCreatedFrom: TThemedTextBox;
+    FCreatedTo: TThemedTextBox;
+    FModifiedFrom: TThemedTextBox;
+    FModifiedTo: TThemedTextBox;
+    FAccessedFrom: TThemedTextBox;
+    FAccessedTo: TThemedTextBox;
+    FExcludeEdit: TThemedTextBox;
+    FTimePreset: TThemedComboBox;
+    FTimeTarget: TThemedComboBox;
+    ApplyTimePresetButton: TThemedButton;
+    ClearFiltersButton: TThemedButton;
     FSearchHeader: TThemedPanel;
     FolderLabel: TThemedLabel;
     PatternLabel: TThemedLabel;
@@ -100,6 +141,10 @@ type
     ResultsHeader: TThemedPanel;
     ResultsHeaderLabel: TThemedLabel;
     FResultCount: TThemedLabel;
+    ResultTools: TThemedPanel;
+    FResultFilter: TThemedTextBox;
+    FGroupingCombo: TThemedComboBox;
+    GroupingLabel: TThemedLabel;
     FList: TThemedVirtualList;
     ViewerHeader: TThemedPanel;
     ViewerHeaderLabel: TThemedLabel;
@@ -134,6 +179,10 @@ type
     RegexBackendInfo: TThemedLabel;
     PreferencesLabel: TThemedLabel;
     PreferencesInfo: TThemedLabel;
+    procedure ApplyCalendarClick(Sender: TObject);
+    procedure CalendarModeChanged(Sender: TObject);
+    procedure ApplyTimePresetClick(Sender: TObject);
+    procedure ClearFiltersClick(Sender: TObject);
     procedure BrowseClick(Sender: TObject);
     procedure ClearOutputClick(Sender: TObject);
     procedure ReplaceAllClick(Sender: TObject);
@@ -167,6 +216,12 @@ type
     FMenuPath: TMenuItem;
     FMenuProperties: TMenuItem;
     FResults: TList<TGrepMatch>;
+    FResultExcerpts: TList<string>;
+    FResultView: TGrepResultView;
+    FUpdatingResults: Boolean;
+    FResultViewDirty: Boolean;
+    FResultViewTick: UInt64;
+    FResultFilterTick: UInt64;
     FSession: ISearchSession;
     FReplaceSession: TReplaceSession;
     FFileMonitor: TGrepFileMonitor;
@@ -184,10 +239,17 @@ type
     procedure ReplaceTimerTick;
     procedure MonitorTimerTick;
     procedure SearchInputChanged(Sender: TObject);
+    procedure UpdateFilterControls;
+    procedure AddFileFilters(var Options: TGrepOptions);
     procedure UpdateReplaceActions;
     procedure ClearResultsAfterReplace;
     procedure ThemeChanged(Sender: TObject);
     procedure TimerTick(Sender: TObject);
+    procedure ResultFilterChanged(Sender: TObject);
+    procedure GroupingChanged(Sender: TObject);
+    procedure RebuildResultView;
+    procedure GetGroupText(Sender: TObject; ARowIndex: Integer;
+      const AItem: TThemedVirtualListItemData; var AText: string);
     procedure GetItem(Sender: TObject; AIndex: Integer; var AItem: TThemedVirtualListItemData);
     procedure GetCellText(Sender: TObject; ARowIndex: Integer;
       AColumn: TThemedVirtualListColumn; var AText: string);
@@ -235,7 +297,7 @@ uses
   Vcl.Clipbrd, NimbusForms.Rendering.CodeEditor.DLL,
   NimbusForms.Controls.LogViewer.View,
   NimbusForms.Theming.Manager, NimbusForms.Theming.Presets, NimbusForms.Theming.Types,
-  NativeGrep.Engine;
+  NativeGrep.Engine, NativeGrep.Filters, NativeGrep.Context;
 
 type
   TNativeGrepLogViewMenuAccess = class(TCustomNimbusLogView)
@@ -374,13 +436,14 @@ begin
   end;
 end;
 
-constructor TSearchSession.Create(AMonitor: TGrepFileMonitor);
+constructor TSearchSession.Create(AMonitor: TGrepFileMonitor; AEncoding: TGrepEncoding);
 begin
   inherited Create;
   FMonitor := AMonitor;
+  FEncoding := AEncoding;
   FGuard := TCriticalSection.Create;
   FTracked := TDictionary<string, Boolean>.Create(TIStringComparer.Ordinal);
-  FMatches := TList<TGrepMatch>.Create;
+  FMatches := TList<TResultEntry>.Create;
   FErrors := TStringList.Create;
 end;
 
@@ -394,15 +457,29 @@ begin
 end;
 
 procedure TSearchSession.MatchFound(const Match: TGrepMatch);
+var
+  Entry: TResultEntry;
+  Lines: TArray<TGrepContextLine>;
 begin
+  Entry.Match := Match;
+  if not FTracked.ContainsKey(Match.SourcePath) then
+  begin
+    FTracked.Add(Match.SourcePath, True);
+    FMonitor.TrackCurrent(Match.SourcePath);
+  end;
+  if Match.Line > 0 then
+  begin
+    try
+      Lines := TGrepContextReader.ReadFile(Match, FEncoding, 0, 0, 512);
+      if Length(Lines) > 0 then Entry.Excerpt := Lines[0].Text;
+    except
+      on E: Exception do Entry.Excerpt := '[Preview unavailable]';
+    end;
+  end
+  else Entry.Excerpt := '[Binary match]';
   FGuard.Enter;
   try
-    if not FTracked.ContainsKey(Match.SourcePath) then
-    begin
-      FTracked.Add(Match.SourcePath, True);
-      FMonitor.TrackCurrent(Match.SourcePath);
-    end;
-    FMatches.Add(Match);
+    FMatches.Add(Entry);
   finally
     FGuard.Leave;
   end;
@@ -430,7 +507,7 @@ begin
   end;
 end;
 
-procedure TSearchSession.Drain(out AMatches: TArray<TGrepMatch>;
+procedure TSearchSession.Drain(out AMatches: TArray<TResultEntry>;
   out AErrors: TArray<string>; out ADone: Boolean;
   out AStats: TGrepStatistics; out AFailure: string);
 var
@@ -456,6 +533,8 @@ procedure TfrmNativeGrep.FormCreate(Sender: TObject);
 begin
   Caption := 'NativeGrep';
   FResults := TList<TGrepMatch>.Create;
+  FResultExcerpts := TList<string>.Create;
+  FResultView := TGrepResultView.Create;
   FFileMonitor := TGrepFileMonitor.Create;
   FSelectedMatchIndex := -1;
   InitializeWorkbench;
@@ -463,6 +542,7 @@ begin
   BuildViewerMenus;
   MainTabs.SetTabClosable(RunTab, False);
   MainTabs.SetTabClosable(OptionsTab, False);
+  MainTabs.SetTabClosable(FiltersTab, False);
   MainTabs.ActivePage := RunTab;
   FTimer := TTimer.Create(Self);
   FTimer.Interval := 80;
@@ -494,6 +574,8 @@ begin
   FToken := nil;
   FCancelToken := nil;
   FResults.Free;
+  FResultExcerpts.Free;
+  FResultView.Free;
 end;
 
 procedure TfrmNativeGrep.InitializeWorkbench;
@@ -510,6 +592,9 @@ begin
   FCodeTab.OnShow := ViewerTabShown;
   FHexTab.OnShow := ViewerTabShown;
   FList.OnGetItem := GetItem;
+  FList.OnGetGroupText := GetGroupText;
+  FResultFilter.OnChange := ResultFilterChanged;
+  FGroupingCombo.OnChange := GroupingChanged;
   FList.OnGetCellText := GetCellText;
   FList.OnRenderRowDetails := RenderDetails;
   FList.OnSelectionChanged := SelectionChanged;
@@ -522,6 +607,19 @@ begin
   FRecursiveCheck.OnCheckedChanged := SearchInputChanged;
   FInvalidUtfCheck.OnCheckedChanged := SearchInputChanged;
   FHiddenCheck.OnCheckedChanged := SearchInputChanged;
+  FFiltersEnabled.OnCheckedChanged := SearchInputChanged;
+  FFilterCalendar.Value := Now;
+  FSizeMode.OnChange := SearchInputChanged;
+  FSizeFirst.OnChange := SearchInputChanged;
+  FSizeSecond.OnChange := SearchInputChanged;
+  FCreatedFrom.OnChange := SearchInputChanged;
+  FCreatedTo.OnChange := SearchInputChanged;
+  FModifiedFrom.OnChange := SearchInputChanged;
+  FModifiedTo.OnChange := SearchInputChanged;
+  FAccessedFrom.OnChange := SearchInputChanged;
+  FAccessedTo.OnChange := SearchInputChanged;
+  FExcludeEdit.OnChange := SearchInputChanged;
+  UpdateFilterControls;
   UpdateReplaceActions;
 end;
 
@@ -533,7 +631,19 @@ end;
 procedure TfrmNativeGrep.FormKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
-  if ((Key = VK_F5) or ((Key = VK_RETURN) and (ssCtrl in Shift))) and
+  if (Key = Ord('F')) and (ssCtrl in Shift) and not (ssAlt in Shift) and not FReplacing then
+  begin
+    MainTabs.ActivePage := RunTab;
+    FResultFilter.SetFocus;
+    Key := 0;
+  end
+  else if (Key = VK_ESCAPE) and (FResultFilter.Text <> '') and
+    ((ActiveControl = FResultFilter) or FResultFilter.ContainsControl(ActiveControl)) then
+  begin
+    FResultFilter.Text := '';
+    Key := 0;
+  end
+  else if ((Key = VK_F5) or ((Key = VK_RETURN) and (ssCtrl in Shift))) and
     (not (ssAlt in Shift)) then
   begin
     RunClick(Self);
@@ -580,6 +690,7 @@ begin
   Result.Options.TextPositions := gtpAuto;
   Result.Options.MaxResultsTotal := 50000;
   Result.Options.RegexMaxBytes := 64 * 1024 * 1024;
+  AddFileFilters(Result.Options);
   LItems := TStringList.Create;
   try
     LItems.StrictDelimiter := True;
@@ -599,6 +710,8 @@ end;
 procedure TfrmNativeGrep.SetScanning(const AValue: Boolean);
 begin
   FScanning := AValue;
+  FilterSurface.Enabled := not FScanning;
+  ResultTools.Enabled := not FReplacing;
   if FScanning then
     FRunButton.Caption := 'Cancel'
   else
@@ -640,11 +753,24 @@ begin
     FFolderEdit.SetFocus;
     Exit;
   end;
-  LRequest := BuildRequest;
+  try
+    LRequest := BuildRequest;
+  except
+    on E: EArgumentException do
+    begin
+      MainTabs.ActivePage := FiltersTab;
+      MessageDlg('Invalid file filter: ' + E.Message, mtWarning, [mbOK], 0);
+      Exit;
+    end;
+  end;
   FSearchRequest := LRequest;
   FReplaceReady := False;
   FSelectedMatchIndex := -1;
   FResults.Clear;
+  FResultExcerpts.Clear;
+  FResultView.Clear;
+  FResultFilter.Text := '';
+  FResultViewDirty := False;
   FList.ItemCount := 0;
   FList.RefreshData;
   FOutput.Clear;
@@ -669,7 +795,7 @@ begin
       AddLog('File monitoring unavailable: ' + E.Message, nllWarning);
     end;
   end;
-  FSession := TSearchSession.Create(FFileMonitor);
+  FSession := TSearchSession.Create(FFileMonitor, LRequest.Query.Encoding);
   FCancelToken := TGrepCancellationToken.Create;
   FToken := FCancelToken;
   LSession := FSession;
@@ -703,7 +829,121 @@ end;
 procedure TfrmNativeGrep.SearchInputChanged(Sender: TObject);
 begin
   FReplaceReady := False;
+  UpdateFilterControls;
   UpdateReplaceActions;
+end;
+
+procedure TfrmNativeGrep.UpdateFilterControls;
+var
+  I: Integer;
+  LActive: Boolean;
+begin
+  for I := 0 to FilterSurface.ControlCount - 1 do
+    if (FilterSurface.Controls[I] <> FFiltersEnabled) and
+      (FilterSurface.Controls[I] <> ClearFiltersButton) then
+      FilterSurface.Controls[I].Enabled := FFiltersEnabled.Checked;
+  FSizeFirst.Enabled := FFiltersEnabled.Checked and (FSizeMode.ItemIndex > 0);
+  FSizeSecond.Enabled := FFiltersEnabled.Checked and (FSizeMode.ItemIndex = 6);
+  LActive := FFiltersEnabled.Checked and ((FSizeMode.ItemIndex > 0) or
+    (Trim(FCreatedFrom.Text) <> '') or (Trim(FCreatedTo.Text) <> '') or
+    (Trim(FModifiedFrom.Text) <> '') or (Trim(FModifiedTo.Text) <> '') or
+    (Trim(FAccessedFrom.Text) <> '') or (Trim(FAccessedTo.Text) <> '') or
+    (Trim(FExcludeEdit.Text) <> ''));
+  if LActive then FiltersTab.Caption := 'File filters (active)'
+  else FiltersTab.Caption := 'File filters';
+end;
+
+procedure TfrmNativeGrep.AddFileFilters(var Options: TGrepOptions);
+const
+  Operators: array[1..5] of string = ('<', '<=', '>', '>=', '=');
+var
+  LExpression: string;
+  LItems: TStringList;
+  I: Integer;
+begin
+  if not FFiltersEnabled.Checked then Exit;
+  if FSizeMode.ItemIndex > 0 then
+  begin
+    if FSizeMode.ItemIndex = 6 then LExpression := FSizeFirst.Text + '..' + FSizeSecond.Text
+    else LExpression := Operators[FSizeMode.ItemIndex] + FSizeFirst.Text;
+    Options.FileSizeFilter := TGrepFileFilters.ParseSizeRange(LExpression);
+  end;
+  Options.CreatedTimeFilter := TGrepFileFilters.ParseTimeRange(FCreatedFrom.Text, FCreatedTo.Text);
+  Options.ModifiedTimeFilter := TGrepFileFilters.ParseTimeRange(FModifiedFrom.Text, FModifiedTo.Text);
+  Options.AccessedTimeFilter := TGrepFileFilters.ParseTimeRange(FAccessedFrom.Text, FAccessedTo.Text);
+  LItems := TStringList.Create;
+  try
+    LItems.StrictDelimiter := True;
+    LItems.Delimiter := ';';
+    LItems.DelimitedText := FExcludeEdit.Text;
+    for I := 0 to LItems.Count - 1 do
+      if Trim(LItems[I]) <> '' then
+      begin
+        SetLength(Options.Excludes, Length(Options.Excludes) + 1);
+        Options.Excludes[High(Options.Excludes)] := Trim(LItems[I]);
+      end;
+  finally
+    LItems.Free;
+  end;
+  TGrepFileFilters.Validate(Options);
+end;
+
+procedure TfrmNativeGrep.ApplyTimePresetClick(Sender: TObject);
+const
+  FromValues: array[0..6] of string = ('today', 'yesterday', 'now-30m', 'now-1h', 'now-24h', 'now-7d', 'now-30d');
+var
+  LFrom, LTo: TThemedTextBox;
+  LUpper: string;
+begin
+  if (FTimePreset.ItemIndex < 0) or (FTimePreset.ItemIndex > 6) then Exit;
+  case FTimeTarget.ItemIndex of
+    1: begin LFrom := FCreatedFrom; LTo := FCreatedTo; end;
+    2: begin LFrom := FAccessedFrom; LTo := FAccessedTo; end;
+  else LFrom := FModifiedFrom; LTo := FModifiedTo;
+  end;
+  if FTimePreset.ItemIndex <= 1 then LUpper := FromValues[FTimePreset.ItemIndex]
+  else LUpper := 'now';
+  LFrom.Text := FromValues[FTimePreset.ItemIndex];
+  LTo.Text := LUpper;
+  SearchInputChanged(Sender);
+end;
+
+procedure TfrmNativeGrep.ClearFiltersClick(Sender: TObject);
+begin
+  FSizeMode.ItemIndex := 0;
+  FSizeFirst.Text := '';
+  FSizeSecond.Text := '';
+  FCreatedFrom.Text := '';
+  FCreatedTo.Text := '';
+  FModifiedFrom.Text := '';
+  FModifiedTo.Text := '';
+  FAccessedFrom.Text := '';
+  FAccessedTo.Text := '';
+  FExcludeEdit.Text := '';
+  FFiltersEnabled.Checked := True;
+  SearchInputChanged(Sender);
+end;
+
+procedure TfrmNativeGrep.CalendarModeChanged(Sender: TObject);
+begin
+  FFilterCalendar.ShowTime := FCalendarMode.ItemIndex >= 2;
+end;
+
+procedure TfrmNativeGrep.ApplyCalendarClick(Sender: TObject);
+var
+  LFrom, LTo, LTarget: TThemedTextBox;
+  LValue: string;
+begin
+  case FTimeTarget.ItemIndex of
+    1: begin LFrom := FCreatedFrom; LTo := FCreatedTo; end;
+    2: begin LFrom := FAccessedFrom; LTo := FAccessedTo; end;
+  else LFrom := FModifiedFrom; LTo := FModifiedTo;
+  end;
+  if Odd(FCalendarMode.ItemIndex) then LTarget := LTo else LTarget := LFrom;
+  if FCalendarMode.ItemIndex >= 2 then LValue := FormatDateTime('yyyy-mm-dd"T"hh:nn:ss', FFilterCalendar.Value)
+  else LValue := FormatDateTime('yyyy-mm-dd', FFilterCalendar.Value);
+  LTarget.Text := LValue;
+  SearchInputChanged(Sender);
 end;
 
 procedure TfrmNativeGrep.UpdateReplaceActions;
@@ -711,7 +951,7 @@ var
   LEnabled: Boolean;
 begin
   if (FReplaceAllButton = nil) or (FReplaceSelectedButton = nil) then Exit;
-  LEnabled := FReplaceReady and not FScanning and (FResults <> nil) and (FResults.Count > 0);
+  LEnabled := FReplaceReady and not FScanning and (FResultView <> nil) and (FResultView.Count > 0);
   FReplaceAllButton.Enabled := LEnabled;
   FReplaceSelectedButton.Enabled := LEnabled and (FList <> nil) and (FList.SelectedCount > 0);
 end;
@@ -739,6 +979,7 @@ var
   LConflict: string;
 begin
   if FScanning or not FReplaceReady or (FResults.Count = 0) then Exit;
+  if FResultViewDirty then RebuildResultView;
   if SelectedOnly then
   begin
     LIndices := FList.SelectedIndices;
@@ -746,12 +987,18 @@ begin
     SetLength(LMatches, Length(LIndices));
     for I := 0 to High(LIndices) do
     begin
-      LIndex := LIndices[I];
+      LIndex := FResultView.SourceIndex(LIndices[I]);
       if (LIndex < 0) or (LIndex >= FResults.Count) then Exit;
       LMatches[I] := FResults[LIndex];
     end;
   end
-  else LMatches := FResults.ToArray;
+  else
+  begin
+    SetLength(LMatches, FResultView.Count);
+    for I := 0 to FResultView.Count - 1 do
+      LMatches[I] := FResults[FResultView.SourceIndex(I)];
+  end;
+  if Length(LMatches) = 0 then Exit;
   LPaths := TDictionary<string, Boolean>.Create(TIStringComparer.Ordinal);
   try
     LConflict := '';
@@ -783,7 +1030,7 @@ begin
     else LPrompt := Format('Replace %d selected matches?', [LCount]);
   end
   else
-    LPrompt := Format('Replace all %d listed matches?', [LCount]);
+    LPrompt := Format('Replace all %d visible matches (%d total search results)?', [LCount, FResults.Count]);
   LPrompt := LPrompt + sLineBreak +
     'Every changed file gets a new .bak, .bak2, .bak3 ... backup.' + sLineBreak +
     'Changes cannot be undone automatically.';
@@ -848,6 +1095,9 @@ begin
   FFileMonitor.Clear;
   FSelectedMatchIndex := -1;
   FResults.Clear;
+  FResultExcerpts.Clear;
+  FResultView.Clear;
+  FResultViewDirty := False;
   FList.ItemCount := 0;
   FList.RefreshData;
   FResultCount.Caption := '0 matches';
@@ -927,12 +1177,12 @@ end;
 
 procedure TfrmNativeGrep.TimerTick(Sender: TObject);
 var
-  LMatches: TArray<TGrepMatch>;
+  LMatches: TArray<TResultEntry>;
   LErrors: TArray<string>;
   LDone: Boolean;
   LStats: TGrepStatistics;
   LFailure: string;
-  LMatch: TGrepMatch;
+  LEntry: TResultEntry;
   LError: string;
   LAdded: Integer;
 begin
@@ -942,6 +1192,8 @@ begin
     ReplaceTimerTick;
     Exit;
   end;
+  if FResultViewDirty and (GetTickCount64 - FResultFilterTick >= 180) and
+    (GetTickCount64 - FResultViewTick >= 300) then RebuildResultView;
   if FSession = nil then
     Exit;
   FSession.Drain(LMatches, LErrors, LDone, LStats, LFailure);
@@ -949,11 +1201,12 @@ begin
   if LAdded <> 0 then
   begin
     FResults.Capacity := Max(FResults.Capacity, FResults.Count + LAdded);
-    for LMatch in LMatches do
-      FResults.Add(LMatch);
-    FList.ItemCount := FResults.Count;
-    FList.RefreshData;
-    FResultCount.Caption := Format('%d matches', [FResults.Count]);
+    for LEntry in LMatches do
+    begin
+      FResults.Add(LEntry.Match);
+      FResultExcerpts.Add(LEntry.Excerpt);
+    end;
+    FResultViewDirty := True;
   end;
   for LError in LErrors do
   begin
@@ -965,6 +1218,7 @@ begin
     FStatus.Caption := Format('Searching... %d matches  |  %d file errors', [FResults.Count, FDisplayedErrors]);
     Exit;
   end;
+  if FResultViewDirty then RebuildResultView;
   if (FThread <> nil) and not FThread.Finished then
     Exit;
   if FThread <> nil then
@@ -995,6 +1249,84 @@ begin
   FCancelToken := nil;
 end;
 
+procedure TfrmNativeGrep.ResultFilterChanged(Sender: TObject);
+begin
+  FResultFilterTick := GetTickCount64;
+  FResultViewDirty := True;
+end;
+
+procedure TfrmNativeGrep.GroupingChanged(Sender: TObject);
+begin
+  FResultViewDirty := True;
+end;
+
+procedure TfrmNativeGrep.RebuildResultView;
+var
+  Selected: TThemedVirtualListIndexArray;
+  Focused, TopSource, I, Row, FocusRow: Integer;
+  Grouping: TGrepResultGrouping;
+begin
+  if FUpdatingResults or (FResultView = nil) then Exit;
+  Selected := FList.SelectedIndices;
+  for I := 0 to High(Selected) do Selected[I] := FResultView.SourceIndex(Selected[I]);
+  Focused := FResultView.SourceIndex(FList.SelectedIndex);
+  TopSource := FResultView.SourceIndex(FList.TopIndex);
+  Grouping := TGrepResultGrouping(EnsureRange(FGroupingCombo.ItemIndex, 0, 2));
+  FUpdatingResults := True;
+  FList.BeginUpdate;
+  try
+    FList.ClearSelection;
+    FList.CollapseAllDetails;
+    FList.ItemCount := 0;
+    FResultView.Rebuild(FResults, FResultExcerpts, FResultFilter.Text, Grouping);
+    FList.ShowGroupHeaders := Grouping <> grgNone;
+    FList.ItemCount := FResultView.Count;
+    FocusRow := FResultView.RowIndex(Focused);
+    for I := 0 to High(Selected) do
+    begin
+      Row := FResultView.RowIndex(Selected[I]);
+      if Row >= 0 then FList.Selected[Row] := True;
+    end;
+    if FocusRow >= 0 then
+    begin
+      FList.Selected[FocusRow] := False;
+      FList.Selected[FocusRow] := True;
+    end;
+    Row := FResultView.RowIndex(TopSource);
+    if Row >= 0 then FList.TopIndex := Row else FList.ScrollOffset := 0;
+    FSelectedMatchIndex := FResultView.SourceIndex(FList.SelectedIndex);
+    if (FSelectedMatchIndex < 0) and (Focused >= 0) then
+    begin
+      FPreviewFile := '';
+      FHexFile := '';
+      FPreview.ClearSearchMatches;
+      FPreview.Bookmarks.Clear;
+      FPreview.Text := 'Select a visible result to view the source file.';
+      FHex.Clear;
+      FPreviewTitle.Caption := 'Select a match';
+    end;
+    if Trim(FResultFilter.Text) = '' then
+      FList.EmptyText := 'No results - Enter a pattern and press F5'
+    else FList.EmptyText := 'No matching results - Clear the result filter to show all hits';
+    FResultCount.Caption := Format('%d / %d matches', [FResultView.Count, FResults.Count]);
+    FList.RefreshData;
+    FResultViewDirty := False;
+    FResultViewTick := GetTickCount64;
+  finally
+    FList.EndUpdate;
+    FUpdatingResults := False;
+  end;
+  if (FSelectedMatchIndex >= 0) and (FSelectedMatchIndex <> Focused) then
+    ShowMatch(FResults[FSelectedMatchIndex]);
+  UpdateReplaceActions;
+end;
+
+procedure TfrmNativeGrep.GetGroupText(Sender: TObject; ARowIndex: Integer;
+  const AItem: TThemedVirtualListItemData; var AText: string);
+begin
+  AText := FResultView.GroupText(ARowIndex);
+end;
+
 procedure TfrmNativeGrep.GetItem(Sender: TObject; AIndex: Integer;
   var AItem: TThemedVirtualListItemData);
 var
@@ -1005,6 +1337,7 @@ begin
   AItem := Default(TThemedVirtualListItemData);
   AItem.Enabled := True;
   AItem.ImageIndex := -1;
+  AIndex := FResultView.SourceIndex(AIndex);
   if (AIndex < 0) or (AIndex >= FResults.Count) then
     Exit;
   LMatch := FResults[AIndex];
@@ -1013,6 +1346,7 @@ begin
   LDetails := TStringBuilder.Create;
   try
     LDetails.Append(LMatch.SourcePath).AppendLine;
+    LDetails.Append(FResultExcerpts[AIndex]).AppendLine;
     LDetails.AppendFormat('Offset: %d  Bytes: %d  Pattern: %d',
       [LMatch.ByteOffset, Int64(LMatch.ByteLength), LMatch.PatternIndex]);
     if Length(LMatch.Captures) <> 0 then
@@ -1036,6 +1370,7 @@ procedure TfrmNativeGrep.GetCellText(Sender: TObject; ARowIndex: Integer;
 var
   LMatch: TGrepMatch;
 begin
+  ARowIndex := FResultView.SourceIndex(ARowIndex);
   if (ARowIndex < 0) or (ARowIndex >= FResults.Count) then
     Exit;
   LMatch := FResults[ARowIndex];
@@ -1045,6 +1380,7 @@ begin
     2: if LMatch.Column > 0 then AText := IntToStr(LMatch.Column) else AText := '-';
     3: AText := Format('$%x', [LMatch.ByteOffset]);
     4: AText := UIntToStr(UInt64(LMatch.ByteLength));
+    6: AText := FResultExcerpts[ARowIndex];
     5: case FFileMonitor.StateOf(LMatch.SourcePath) of
          gfsCurrent: AText := 'Watching';
          gfsChanged: AText := 'Changed';
@@ -1073,7 +1409,8 @@ procedure TfrmNativeGrep.SelectionChanged(Sender: TObject);
 var
   LIndex: Integer;
 begin
-  LIndex := FList.SelectedIndex;
+  if FUpdatingResults then Exit;
+  LIndex := FResultView.SourceIndex(FList.SelectedIndex);
   if (LIndex >= 0) and (LIndex < FResults.Count) then
   begin
     FSelectedMatchIndex := LIndex;
@@ -1083,9 +1420,12 @@ begin
 end;
 
 procedure TfrmNativeGrep.ItemDoubleClick(Sender: TObject; AIndex: Integer);
+var
+  LSource: Integer;
 begin
-  if (AIndex < 0) or (AIndex >= FResults.Count) then Exit;
-  if FFileMonitor.Recheck(FResults[AIndex].SourcePath) <> gfsCurrent then
+  LSource := FResultView.SourceIndex(AIndex);
+  if (LSource < 0) or (LSource >= FResults.Count) then Exit;
+  if FFileMonitor.Recheck(FResults[LSource].SourcePath) <> gfsCurrent then
   begin
     FList.RefreshData;
     if not FScanning and (MessageDlg('This source file has changed or can no longer be verified.' +
@@ -1253,7 +1593,7 @@ var
   LIndex: Integer;
 begin
   Result := '';
-  LIndex := FList.SelectedIndex;
+  LIndex := FResultView.SourceIndex(FList.SelectedIndex);
   if (LIndex >= 0) and (LIndex < FResults.Count) then
     Result := FResults[LIndex].SourcePath;
 end;
@@ -1303,7 +1643,7 @@ begin
             FViewerTabs.ActivePage := FCodeTab
           else if LTag = 4 then
             FViewerTabs.ActivePage := FHexTab;
-          LIndex := FList.SelectedIndex;
+          LIndex := FResultView.SourceIndex(FList.SelectedIndex);
           if (LIndex >= 0) and (LIndex < FResults.Count) then
             ShowMatch(FResults[LIndex]);
         end;
@@ -1351,7 +1691,7 @@ var
 begin
   if (FList = nil) or (FResults = nil) then
     Exit;
-  LIndex := FList.SelectedIndex;
+  LIndex := FResultView.SourceIndex(FList.SelectedIndex);
   if (LIndex < 0) or (LIndex >= FResults.Count) then
     LIndex := FSelectedMatchIndex;
   if (LIndex < 0) or (LIndex >= FResults.Count) then
@@ -1637,6 +1977,20 @@ begin
     FRecursiveCheck.Checked := LIni.ReadBool('Search', 'Recursive', FRecursiveCheck.Checked);
     FInvalidUtfCheck.Checked := LIni.ReadBool('Search', 'InvalidUtf8', FInvalidUtfCheck.Checked);
     FHiddenCheck.Checked := LIni.ReadBool('Search', 'Hidden', FHiddenCheck.Checked);
+    FGroupingCombo.ItemIndex := EnsureRange(LIni.ReadInteger('Results', 'Grouping', 1), 0, 2);
+    FResultViewDirty := True;
+    FSizeFirst.Text := LIni.ReadString('Filters', 'SizeFirst', '');
+    FSizeSecond.Text := LIni.ReadString('Filters', 'SizeSecond', '');
+    FCreatedFrom.Text := LIni.ReadString('Filters', 'CreatedFrom', '');
+    FCreatedTo.Text := LIni.ReadString('Filters', 'CreatedTo', '');
+    FModifiedFrom.Text := LIni.ReadString('Filters', 'ModifiedFrom', '');
+    FModifiedTo.Text := LIni.ReadString('Filters', 'ModifiedTo', '');
+    FAccessedFrom.Text := LIni.ReadString('Filters', 'AccessedFrom', '');
+    FAccessedTo.Text := LIni.ReadString('Filters', 'AccessedTo', '');
+    FExcludeEdit.Text := LIni.ReadString('Filters', 'Exclude', '');
+    FSizeMode.ItemIndex := EnsureRange(LIni.ReadInteger('Filters', 'SizeMode', 0), 0, 6);
+    FFiltersEnabled.Checked := LIni.ReadBool('Filters', 'Enabled', True);
+    UpdateFilterControls;
     Width := Max(920, LIni.ReadInteger('Window', 'Width', Width));
     Height := Max(660, LIni.ReadInteger('Window', 'Height', Height));
   finally
@@ -1660,6 +2014,18 @@ begin
     LIni.WriteBool('Search', 'Recursive', FRecursiveCheck.Checked);
     LIni.WriteBool('Search', 'InvalidUtf8', FInvalidUtfCheck.Checked);
     LIni.WriteBool('Search', 'Hidden', FHiddenCheck.Checked);
+    LIni.WriteInteger('Results', 'Grouping', FGroupingCombo.ItemIndex);
+    LIni.WriteString('Filters', 'SizeFirst', FSizeFirst.Text);
+    LIni.WriteString('Filters', 'SizeSecond', FSizeSecond.Text);
+    LIni.WriteString('Filters', 'CreatedFrom', FCreatedFrom.Text);
+    LIni.WriteString('Filters', 'CreatedTo', FCreatedTo.Text);
+    LIni.WriteString('Filters', 'ModifiedFrom', FModifiedFrom.Text);
+    LIni.WriteString('Filters', 'ModifiedTo', FModifiedTo.Text);
+    LIni.WriteString('Filters', 'AccessedFrom', FAccessedFrom.Text);
+    LIni.WriteString('Filters', 'AccessedTo', FAccessedTo.Text);
+    LIni.WriteString('Filters', 'Exclude', FExcludeEdit.Text);
+    LIni.WriteInteger('Filters', 'SizeMode', FSizeMode.ItemIndex);
+    LIni.WriteBool('Filters', 'Enabled', FFiltersEnabled.Checked);
     if WindowState = wsNormal then
     begin
       LIni.WriteInteger('Window', 'Width', Width);
@@ -1674,6 +2040,6 @@ initialization
   RegisterClasses([TThemedButton, TThemedCheckBox, TThemedCodeEditor,
     TThemedComboBox, TThemedHexEditor, TThemedLabel,
     TThemedLogViewer, TThemedPanel, TThemedSplitContainer,
-    TThemedTextBox, TThemedToggleBox, TThemedVirtualList]);
+    TThemedTextBox, TThemedToggleBox, TThemedVirtualList, TThemedDatePicker]);
 
 end.

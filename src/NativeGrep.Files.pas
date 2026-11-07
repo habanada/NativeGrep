@@ -18,7 +18,7 @@ type
 implementation
 
 uses
-  Winapi.Windows, NativeGrep.Paths;
+  Winapi.Windows, NativeGrep.Paths, NativeGrep.Filters;
 
 class function TGrepFileEnumerator.GlobMatch(const Pattern, FileName: string): Boolean;
 var
@@ -137,6 +137,18 @@ var
   Attr: DWORD;
   Size: Int64;
 
+  function Accepted(const FileSize: Int64; const Created, Modified, Accessed: TFileTime): Boolean;
+  begin
+    Result := ((Options.MaxFileSize = 0) or (FileSize <= Options.MaxFileSize)) and
+      TGrepFileFilters.Contains(Options.FileSizeFilter, FileSize) and
+      TGrepFileFilters.Contains(Options.CreatedTimeFilter,
+        (Int64(Created.dwHighDateTime) shl 32) or Created.dwLowDateTime) and
+      TGrepFileFilters.Contains(Options.ModifiedTimeFilter,
+        (Int64(Modified.dwHighDateTime) shl 32) or Modified.dwLowDateTime) and
+      TGrepFileFilters.Contains(Options.AccessedTimeFilter,
+        (Int64(Accessed.dwHighDateTime) shl 32) or Accessed.dwLowDateTime);
+  end;
+
   procedure Walk(const DirPath, RelativeDir: string; Depth: Integer);
   var
     Data: TWin32FindData;
@@ -175,7 +187,7 @@ var
         else if Included(Name, RelativePath, Options) then
         begin
           ItemSize := (Int64(Data.nFileSizeHigh) shl 32) + Int64(Data.nFileSizeLow);
-          if (Options.MaxFileSize = 0) or (ItemSize <= Options.MaxFileSize) then OnFile(FullPath);
+          if Accepted(ItemSize, Data.ftCreationTime, Data.ftLastWriteTime, Data.ftLastAccessTime) then OnFile(FullPath);
         end;
       until not FindNextFile(Handle, Data);
       Code := GetLastError;
@@ -186,6 +198,7 @@ var
   end;
 
 begin
+  TGrepFileFilters.Validate(Options);
   for Root in Options.Roots do
   begin
     if IsCancelled() then Break;
@@ -200,7 +213,7 @@ begin
     else if Included(ExtractFileName(Root), ExtractFileName(Root), Options) then
     begin
       Size := (Int64(RootData.nFileSizeHigh) shl 32) + Int64(RootData.nFileSizeLow);
-      if (Options.MaxFileSize = 0) or (Size <= Options.MaxFileSize) then OnFile(Root);
+      if Accepted(Size, RootData.ftCreationTime, RootData.ftLastWriteTime, RootData.ftLastAccessTime) then OnFile(Root);
     end;
   end;
 end;

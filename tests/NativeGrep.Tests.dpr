@@ -4,7 +4,7 @@
 
 uses
   System.SysUtils, System.Classes, System.Generics.Collections, System.IOUtils,
-  NativeGrep.Types, NativeGrep.Api, NativeGrep.Paths, NativeGrep.Context, NativeGrep.Sort, NativeGrep.UnicodeTables, NativeGrep.Replace.Tests, NativeGrep.Replace.StressTests, NativeGrep.FileMonitor.Tests;
+  NativeGrep.Types, NativeGrep.Api, NativeGrep.Paths, NativeGrep.Context, NativeGrep.Sort, NativeGrep.UnicodeTables, NativeGrep.Replace.Tests, NativeGrep.Replace.StressTests, NativeGrep.FileMonitor.Tests, NativeGrep.Filters.Tests, NativeGrep.ResultView.Tests;
 
 type
   TCollectSink = class(TInterfacedObject, IGrepResultSink)
@@ -1717,6 +1717,8 @@ begin
       AutoEncodingTest(Dir);
       AutoMultiEncodingTest(Dir);
       RelativeGlobTest(Dir);
+      RunFileFilterTests(Dir);
+      RunResultViewTests;
       WindowsPathTest;
       ContextReadTest(Dir);
       UnicodeNormalizationTest(Dir);

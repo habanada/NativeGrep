@@ -4,7 +4,7 @@ program npgrep;
 
 uses
   System.SysUtils, System.Classes, System.SyncObjs, System.Generics.Collections, System.JSON, Winapi.Windows,
-  NativeGrep.Types, NativeGrep.Api, NativeGrep.Context;
+  NativeGrep.Types, NativeGrep.Api, NativeGrep.Context, NativeGrep.Filters;
 
 type
   TConsoleSink = class(TInterfacedObject, IGrepResultSink)
@@ -276,7 +276,15 @@ begin
   StdOut('  --hidden                 Include hidden/system entries');
   StdOut('  --max-count N            Maximum matches per file');
   StdOut('  --max-results N          Maximum total matches');
-  StdOut('  --max-file-size N        Maximum file length in bytes');
+  StdOut('  --min-file-size SIZE     Minimum inclusive file size');
+  StdOut('  --max-file-size SIZE     Maximum inclusive size (0=unlimited)');
+  StdOut('  --file-size EXPR         >SIZE, >=SIZE, <SIZE, <=SIZE, =SIZE, MIN..MAX');
+  StdOut('  --created-from TIME      Created at or after TIME');
+  StdOut('  --created-to TIME        Created at or before TIME');
+  StdOut('  --modified-from TIME     Modified at or after TIME');
+  StdOut('  --modified-to TIME       Modified at or before TIME');
+  StdOut('  --accessed-from TIME     Last accessed at or after TIME');
+  StdOut('  --accessed-to TIME       Last accessed at or before TIME');
   StdOut('  --line-text              Print the original matching line');
   StdOut('  -A N, -B N, -C N        Lines after, before, or around each match (0..32)');
   StdOut('  --count                  Counts for matched files');
@@ -288,6 +296,11 @@ begin
   StdOut('  --quiet                  Suppress matches');
   StdOut('  -h, --help               Show help');
   StdOut('Path glob: * and ? match a name; ** matches multiple directory levels.');
+  StdOut('Size units: B, KB/MB/GB/TB (decimal), KiB/MiB/GiB/TiB (binary); e.g. 1.5MiB.');
+  StdOut('Quote size expressions containing < or >. Size and time filters combine with AND.');
+  StdOut('TIME: YYYY-MM-DD, ISO 8601 datetime, today, yesterday, now, now-7d/24h/30m.');
+  StdOut('Dates include the whole day; timestamps without timezone use local time.');
+  StdOut('Use Z or an explicit offset for UTC/offset times. Metadata filters are file-only.');
   StdOut('Auto encoding recognizes UTF-16LE/BE BOM; otherwise uses UTF-8.');
   StdOut('Context is per match, may repeat overlapping lines, and is file-only.');
   StdOut('Context reads bounded windows and abbreviates exceptionally long lines.');
@@ -327,10 +340,14 @@ var
   I, Distance, BeforeCount, AfterCount: Integer;
   Arg, Value: string;
   Patterns: TArray<string>;
+  CreatedFrom, CreatedTo, ModifiedFrom, ModifiedTo, AccessedFrom, AccessedTo: string;
+  HasSizeExpression, HasSizeBounds: Boolean;
   HasPattern, ShowStats, Quiet, StdinMode, Jsonl, CountOnly, FilesOnly, HexMode, AfterDoubleDash, EncodingSpecified, ShowLines, RegexMode: Boolean;
   N: Int64;
 begin
   Request := Default(TGrepRequest);
+  HasSizeExpression := False;
+  HasSizeBounds := False;
   Request.Query.Mode := gmLiteralText;
   Request.Query.Encoding := geAuto;
   ShowStats := False;
@@ -462,7 +479,30 @@ begin
     else if not AfterDoubleDash and (Arg = '--exclude') then AddString(Request.Options.Excludes, NextArg(I, Arg))
     else if not AfterDoubleDash and (Arg = '--max-count') then Request.Options.MaxMatchesPerFile := ReadNonnegative(NextArg(I, Arg), Arg)
     else if not AfterDoubleDash and (Arg = '--max-results') then Request.Options.MaxResultsTotal := ReadNonnegative(NextArg(I, Arg), Arg)
-    else if not AfterDoubleDash and (Arg = '--max-file-size') then Request.Options.MaxFileSize := ReadNonnegative(NextArg(I, Arg), Arg)
+    else if not AfterDoubleDash and (Arg = '--file-size') then
+    begin
+      if HasSizeBounds or HasSizeExpression then raise EArgumentException.Create('Use --file-size once, or --min-file-size/--max-file-size');
+      Request.Options.FileSizeFilter := TGrepFileFilters.ParseSizeRange(NextArg(I, Arg));
+      HasSizeExpression := True;
+    end
+    else if not AfterDoubleDash and ((Arg = '--min-file-size') or (Arg = '--max-file-size')) then
+    begin
+      if HasSizeExpression then raise EArgumentException.Create('--file-size cannot be combined with --min-file-size/--max-file-size');
+      HasSizeBounds := True;
+      N := TGrepFileFilters.ParseSize(NextArg(I, Arg));
+      if Arg = '--max-file-size' then Request.Options.MaxFileSize := N
+      else
+      begin
+        Request.Options.FileSizeFilter.HasMinimum := True;
+        Request.Options.FileSizeFilter.Minimum := N;
+      end;
+    end
+    else if not AfterDoubleDash and (Arg = '--created-from') then CreatedFrom := NextArg(I, Arg)
+    else if not AfterDoubleDash and (Arg = '--created-to') then CreatedTo := NextArg(I, Arg)
+    else if not AfterDoubleDash and (Arg = '--modified-from') then ModifiedFrom := NextArg(I, Arg)
+    else if not AfterDoubleDash and (Arg = '--modified-to') then ModifiedTo := NextArg(I, Arg)
+    else if not AfterDoubleDash and (Arg = '--accessed-from') then AccessedFrom := NextArg(I, Arg)
+    else if not AfterDoubleDash and (Arg = '--accessed-to') then AccessedTo := NextArg(I, Arg)
     else if not AfterDoubleDash and (Arg = '--hex') then
     begin
       if HasPattern then raise EArgumentException.Create('Text and hex patterns cannot be combined');
@@ -482,6 +522,12 @@ begin
     Inc(I);
   end;
   if not HasPattern then raise EArgumentException.Create('Pattern is required; use --help');
+  Request.Options.CreatedTimeFilter := TGrepFileFilters.ParseTimeRange(CreatedFrom, CreatedTo);
+  Request.Options.ModifiedTimeFilter := TGrepFileFilters.ParseTimeRange(ModifiedFrom, ModifiedTo);
+  Request.Options.AccessedTimeFilter := TGrepFileFilters.ParseTimeRange(AccessedFrom, AccessedTo);
+  TGrepFileFilters.Validate(Request.Options);
+  if StdinMode and TGrepFileFilters.Active(Request.Options) then
+    raise EArgumentException.Create('File size and time filters cannot be used with --stdin');
   if Request.Query.RegexAllowInvalidUtf8 and not RegexMode then
     raise EArgumentException.Create('--regex-invalid-utf requires --regex');
   if CountOnly and FilesOnly then raise EArgumentException.Create('--count and --files-with-matches are mutually exclusive');

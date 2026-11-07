@@ -6,16 +6,21 @@ NimbusForms is still in preview. A public preview release is planned for a later
 
 ## Layout
 
-The fixed workbench controls are stored in `NativeGrep.GUI.Main.dfm`, including both main tabs, search inputs, split panes, viewers, output actions, and options. They can be edited in the Delphi form designer. Runtime initialization connects result providers, loads theme presets and saved settings, and creates context menus. Application panels use `TThemedPanel` so their backgrounds follow the same NimbusForms palette as the buttons.
+The fixed workbench controls are stored in `NativeGrep.GUI.Main.dfm`, including all main tabs, search inputs, file filters, split panes, viewers, output actions, and options. They can be edited in the Delphi form designer. Runtime initialization connects result providers, loads theme presets and saved settings, and creates context menus. Application panels use `TThemedPanel` so their backgrounds follow the same NimbusForms palette as the buttons.
 
-- Compact Visual-Studio-inspired workbench with NimbusForms `Run Search` and `Options` tabs.
+- Compact Visual-Studio-inspired workbench with NimbusForms `Run Search`, `File filters` and `Options` tabs.
+- File size comparisons (smaller, larger, inclusive limits, exact size and between), independent creation/modification/access time ranges, a NimbusForms date/time calendar, relative time templates and exclude masks. Filters can be disabled together, cleared, and saved with search settings. See [file filters](../../docs/file-filters.md) for units, boundary rules and examples.
 - Compact NimbusForms search textboxes, primary Search button, file masks, regex/case toggles, and recursive checkbox.
 - Nested themed split containers: results and a read-only NimbusForms CodeEditor above, diagnostic output below.
 - VirtualList in compact mode, virtual result rows, expandable offset/capture metadata, and selection navigation into the CodeEditor, with syntax highlighting, line numbers, search-range highlights, and bookmarked result lines.
+- Results can be grouped by file (default), grouped by folder, or shown in arrival order without grouping. Headers count visible matches. The grouping preference is saved.
+- The result filter searches paths, cached match-line excerpts, line/column positions and decimal or hexadecimal byte offsets using a case-insensitive literal substring. Ctrl+F focuses the filter; Escape clears it when focused. Filtering also works while results arrive, and shows visible/total counts. A new search clears the result filter.
+- The `MATCH TEXT` column shows a bounded excerpt of the line containing the start of the match, captured on the search thread. Excerpts are limited to 512 characters around the hit; filtering does not search omitted text or reread files. Binary matches and unreadable previews retain searchable paths and positions.
+- Selection, previews and file actions follow the source match when grouping or filtering changes the row order. `Replace visible` replaces only visible matches; `Replace selected` uses selected visible rows. Both retain the existing source-change checks and confirmation dialog.
 - Diagnostics use `TThemedLogViewer` from `NimbusForms.Controls.LogViewer`, built on `NimbusForms.Rendering.LogViewer`. Severity-aware messages, a 10,000-line cap, and a Clear action.
 - Chrome and pane headers recolor when the NimbusForms theme changes. Theme presets and search settings persist in `%APPDATA%\NativeGrep\GUI.ini`.
 - F5 or Ctrl+Enter starts a search; Esc requests cancellation. Enter in the search box starts a search.
-- Search controls resize and reposition through DFM anchors when the window width changes; pane captions do not overlap source names. Options use full-width section headings with aligned label/control columns and muted explanations. The window minimum size is 920 x 600 to preserve the workbench split panes.
+- Search controls resize and reposition through DFM anchors when the window width changes; pane captions do not overlap source names. Options use full-width section headings with aligned label/control columns and muted explanations. The window minimum size is 920 x 660 to preserve the workbench split panes and file filter controls.
 
 ## Build
 

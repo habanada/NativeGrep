@@ -27,6 +27,16 @@ type
     RegexAllowInvalidUtf8: Boolean;
   end;
 
+  // Inclusive bounds by default. Disabled bounds impose no restriction.
+  TGrepFilterRange = record
+    HasMinimum: Boolean;
+    HasMaximum: Boolean;
+    Minimum: Int64;
+    Maximum: Int64;
+    MinimumExclusive: Boolean;
+    MaximumExclusive: Boolean;
+  end;
+
   TGrepOptions = record
     Roots: TArray<string>;
     Includes: TArray<string>;
@@ -38,6 +48,11 @@ type
     WorkQueueCapacity: Integer;
     ResultQueueCapacity: Integer;
     MaxFileSize: Int64;
+    FileSizeFilter: TGrepFilterRange;
+    // UTC Windows FILETIME ticks (100 ns since 1601-01-01).
+    CreatedTimeFilter: TGrepFilterRange;
+    ModifiedTimeFilter: TGrepFilterRange;
+    AccessedTimeFilter: TGrepFilterRange;
     MaxMatchesPerFile: Int64;
     MaxResultsTotal: Int64;
     TextPositions: TGrepTextPositions;
