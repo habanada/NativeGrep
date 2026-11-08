@@ -59,6 +59,7 @@
         <DCC_UnitSearchPath>..\..\src;..\..\external\NativePattern3\src;..\..\..\NimbusForms\NimbusForms.Controls\src;..\..\..\NimbusForms\NimbusForms.Theming\src;..\..\..\NimbusForms\NimbusForms.HexEditor\src;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Namespace>System;System.Win;Winapi;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <SanitizedProjectName>NativeGrep_GUI</SanitizedProjectName>
+        <Icon_MainIcon>..\..\NativeGrep.ico</Icon_MainIcon>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_Namespace>Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>

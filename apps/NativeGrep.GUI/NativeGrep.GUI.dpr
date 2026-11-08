@@ -1,6 +1,7 @@
 program NativeGrepGUI;
 
 {$APPTYPE GUI}
+{$R 'NativeGrep.GUI.res'}
 
 uses
   System.Classes,
