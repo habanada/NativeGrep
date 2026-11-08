@@ -8,6 +8,8 @@ NativeGrep is a standalone search library with no VCL dependency. The core searc
 
 NimbusForms is still in preview. A public preview release is planned for a later date; no release date has been announced.
 
+![NativeGrep main window with search results and code preview](images/nativegrep.jpg)
+
 Search runs **per file**: a producer enumerates files, 1 to 64 workers search different files in parallel, and a single dispatcher delivers matches to the `IGrepResultSink`.
 
 ## Features
@@ -56,6 +58,16 @@ Both project files use DCC unit search paths for `src` and `external/NativePatte
 Place `pcre2-8.dll` beside `npgrep.exe`, `NativeGrep.GUI.exe`, or the host EXE when using the library. Regex tests need it beside `NativeGrep.Tests.exe` as well. The loader uses the EXE directory, not the working directory or `PATH`.
 
 Debug and Release have separate output directories. Supply the DLL in each directory you run, such as `bin/Win64/Debug` and `bin/Win64/Release`. Building the Delphi project does not copy this dependency. The repository does not include third-party DLL binaries. See the [regex guide](docs/regex.md) for setup and limits.
+
+## GUI workbench
+
+**Appearance and search options**
+
+![NativeGrep options with theme selection and search engine settings](images/nativegrep2.jpg)
+
+**File filters**
+
+![NativeGrep file filters for size, timestamps, exclude masks and path regexes](images/nativegrep3.jpg)
 
 ## Usage
 
